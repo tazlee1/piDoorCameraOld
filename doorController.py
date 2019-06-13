@@ -64,15 +64,16 @@ def write_log(message):
         print("Making directory. Did not exist.")
     with open(completeName, "a") as myfile:
         myfile.write("{}\n".format(message))
-        
+
 def sendCameraCommand():
     for cam in camlist:
-        camAddress = socket.gethostbyname(cam.strip())
-        s = socket.socket()
-        s.connect((camAddress, port))
-        print(s.recv(1024))
-        s.close()
-        print("Camera command sent to {}".format(cam))
+        try:
+            camAddress = socket.gethostbyname(cam.strip())
+            s = socket.socket()
+            s.connect((camAddress, port))
+            print(s.recv(1024))
+            s.close()
+            print("Camera command sent to {}".format(cam))
 
 def sendUploadCommand():
     global backup
@@ -91,7 +92,7 @@ def numToString(num, length):
     while len(retVal) < length:
         retVal = "0{}".format(num)
     return retVal
-    
+
 def backup_file(contents):
     file_name = "scales-{}.htm".format(datetime.now().isoformat())
     file_name = file_name.replace(":","")
@@ -107,7 +108,7 @@ def backup_file(contents):
     with open(completeName, 'w') as file:
         file.write(contents.decode("utf-8"))
     write_log(' Saved backup to: {}'.format(completeName))
-    
+
 def getUrlContents(url):
     try:
         resp = urllib.request.urlopen(url)
@@ -122,19 +123,19 @@ def getUrlContents(url):
         raise
     except Exception as e:
         raise
-    
+
 def logBadRows(data):
     with open("incomplete_rows.log", "a") as myfile:
         myfile.write("{0}: {1}\n".format(datetime.now().isoformat(timespec='microseconds'), data))
         message = {'title':'Incomplete data found on scale import', 
-            'body':'The following row was found with incomplete data.\n{}\n\nPlease look into'.format(data), 
+            'body':'The following row was found with incomplete data.\n{}\n\nPlease look into'.format(data),
             'sendto':'tony@maplerowdairy.com'}
         post_data = urllib.parse.urlencode(message).encode('ascii')
         headers = {}
         headers['Content-Type'] = 'application/json'
         r = urllib.request.urlopen(url = "http://mobi.mrdfarm.com/sendnotifications.php", data = post_data)
         print(r.read())
-    
+
 def updateScales():
     print("Updating Scales")
     try:
@@ -195,29 +196,31 @@ def updateScales():
     except Exception as e:
         write_log(traceback.format_exc())
         print(traceback.format_exc())
+try:
+    while True:
+        global backup
+        oldIsOpen = isOpen 
+        isOpen = GPIO.input(DOOR_SENSOR_PIN)
+        if (isOpen and (isOpen != oldIsOpen)):
+            # log when the door is opened
+            write_log("Door opened at {}".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+            print("Opened")
 
-while True:
-    global backup
-    oldIsOpen = isOpen 
-    isOpen = GPIO.input(DOOR_SENSOR_PIN)  
-    if (isOpen and (isOpen != oldIsOpen)):
-        # log when the door is opened        
-        write_log("Door opened at {}".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))  
-        print("Opened")
-        
-        Process(target = updateScales).start()
-        # send command to take pictures to all remote cameras
-        Process(target = sendCameraCommand).start()
-        # Uncomment following line and add more lines for more camera
-        #Process(target = notifyCamera2).start()
-        backup = datetime.now() + timedelta(minutes=5)
-        
-    elif (isOpen != oldIsOpen):  
-        print("Closed")
-        # log when the door is closed
-        write_log("Door closed at {}".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-    if (backup != False):
-        if (backup < datetime.now()):
-            write_log("Sending upload command")
-            Process(target = sendUploadCommand).start()
-    time.sleep(0.1)
+            Process(target = updateScales).start()
+            # send command to take pictures to all remote cameras
+            Process(target = sendCameraCommand).start()
+            # Uncomment following line and add more lines for more camera
+            #Process(target = notifyCamera2).start()
+            backup = datetime.now() + datetime.timedelta(minutes=5)
+
+        elif (isOpen != oldIsOpen):
+            print("Closed")
+            # log when the door is closed
+            write_log("Door closed at {}".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        if (backup != False):
+            if (backup < datetime.now()):
+                write_log("Sending upload command")
+                Process(target = sendUploadCommand).start()
+        time.sleep(0.1)
+    except KeyboardInterrupt:
+        pass
