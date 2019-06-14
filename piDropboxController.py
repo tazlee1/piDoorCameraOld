@@ -4,7 +4,7 @@
 # Version: 2019-06-10
 
 import time
-import datetime
+from datetime import datetime
 import sys, os
 import socket
 from multiprocessing import Process
@@ -29,6 +29,20 @@ isRunning = False
 #Prints indented output
 def print_output(msg, level):
     print((" " * level * 2) + msg)
+
+def write_log(message):
+    file_name = "dropbox_{}.log".format(datetime.now().isoformat()[:10])
+    file_name = file_name.replace(":","")
+    year = numToString(datetime.now().year, 4)
+    month = numToString(datetime.now().month, 2)
+    completeName = os.path.join(wDir, 'log', year, month, file_name)
+
+    directory = os.path.dirname(completeName)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+        print("Making directory. Did not exist.")
+    with open(completeName, "a") as myfile:
+        myfile.write("{}\n".format(message))
 
 #Gets a list of files in a dropbox directory
 def list_files(path):
@@ -93,8 +107,10 @@ def upload_files(path, level):
                 print_output("Uploading File: " + f,level+1)
                 if upload_file(fullFilePath, relativeFilePath) == 1:
                     print_output("Uploaded File: " + f,level + 1)
+                    write_log('Uploaded File: ' + f)
                     if deleteLocal == 1:
                         print_output("Deleting File: " + f,level + 1)
+                        write_log("Deleting File: " + f)
                         os.remove(fullFilePath)
                 else:
                     print_output("Error Uploading File: " + f,level + 1)
@@ -116,21 +132,30 @@ def main():
         print("Process is already running")
     else:
         isRunning = True
+        write_log('Starting upload process to dropbox - {}'.format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
         upload_files("",1)
 
 
 
 if __name__ == '__main__':
-    s = socket.socket()
-    host = "" #socket.gethostname() #ip of raspberry pi
-    port = 12146
-    s.bind((host, port))
+    try:
+        write_log("piDropboxController started at {}".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        s = socket.socket()
+        host = "" #socket.gethostname() #ip of raspberry pi
+        port = 12146
+        s.bind((host, port))
 
-    s.listen(5)
-    while True:
-        c, addr = s.accept()
-        print ('Got connection from',addr)
-        c.send(str.encode('Thank you for connecting'))
-        c.close()
-        # run command to take picture
-        Process(target = main).start()
+        s.listen(5)
+        while True:
+            c, addr = s.accept()
+            print ('Got connection from',addr)
+            write_log('Got connection from {} at {}'.format(addr, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+            c.send(str.encode('Thank you for connecting'))
+            c.close()
+            # run command to take picture
+            Process(target = main).start()
+    except Exception as e:
+        write_log(traceback.format_exc())
+        print(traceback.format_exc())
+    except KeyboardInterrupt:
+        pass

@@ -14,6 +14,7 @@ import RPi.GPIO as GPIO
 import os.path
 import time
 from datetime import datetime
+from datetime import timedelta
 from numbers import Number
 from multiprocessing import Process
 import sys
@@ -41,7 +42,7 @@ GPIO.setup(DOOR_SENSOR_PIN, GPIO.IN, pull_up_down = GPIO.PUD_UP)
 port = 12145
 uploadPort = 12146
 # IP addresses for cameras
-camlist = ['192.168.0.16'] # ie: , '192.168.0.17']
+camlist = ['piCam1.local'] # ie: , '192.168.0.17']
 
 # Backup flag
 backup = False
@@ -74,17 +75,23 @@ def sendCameraCommand():
             print(s.recv(1024))
             s.close()
             print("Camera command sent to {}".format(cam))
+        except Exception as e:
+            print("Could not connect to ", cam)
+            write_log(traceback.format_exc())
 
 def sendUploadCommand():
     global backup
     for cam in camlist:
-        camAddress = socket.gethostbyname(cam.strip())
-        s = socket.socket()
-        s.connect((camAddress, uploadPort))
-        print(s.recv(1024))
-        s.close()
-        print("Upload command sent to {}".format(cam))
-    backup = False
+        try:
+            camAddress = socket.gethostbyname(cam.strip())
+            s = socket.socket()
+            s.connect((camAddress, uploadPort))
+            print(s.recv(1024))
+            s.close()
+            print("Upload command sent to {}".format(cam))
+        except Exception as e:
+            print("Could not connect to ", cam)
+            write_log(traceback.format_exc())
 
 
 def numToString(num, length):
@@ -120,8 +127,10 @@ def getUrlContents(url):
         raise
     except urllib.error.URLError as e:
         print('Reason: ', 'Site timed out')
+        print('Error code: ', e.reason)
         raise
     except Exception as e:
+        print('Exception error code: ', e.code)
         raise
 
 def logBadRows(data):
@@ -190,16 +199,16 @@ def updateScales():
                 write_log(" No records found")
 
             print("Update is completed.")
-            write_log("{} Successfully finished.".format(datetime.now().isoformat(timespec='seconds')))
+            write_log("{} Successfully finished scale update.".format(datetime.now().isoformat()))
         else:
+            print("No new records to process")
             write_log("No new records to process. Finished at {}.".format(datetime.now().isoformat()))
     except Exception as e:
         write_log(traceback.format_exc())
         print(traceback.format_exc())
 try:
     while True:
-        global backup
-        oldIsOpen = isOpen 
+        oldIsOpen = isOpen
         isOpen = GPIO.input(DOOR_SENSOR_PIN)
         if (isOpen and (isOpen != oldIsOpen)):
             # log when the door is opened
@@ -211,7 +220,7 @@ try:
             Process(target = sendCameraCommand).start()
             # Uncomment following line and add more lines for more camera
             #Process(target = notifyCamera2).start()
-            backup = datetime.now() + datetime.timedelta(minutes=5)
+            backup = datetime.now() + timedelta(minutes=5)
 
         elif (isOpen != oldIsOpen):
             print("Closed")
@@ -221,6 +230,7 @@ try:
             if (backup < datetime.now()):
                 write_log("Sending upload command")
                 Process(target = sendUploadCommand).start()
+                backup = False
         time.sleep(0.1)
-    except KeyboardInterrupt:
-        pass
+except KeyboardInterrupt:
+    pass

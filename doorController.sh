@@ -1,19 +1,19 @@
 #!/bin/bash
 ### BEGIN INIT INFO
-# Provides:          picamController.py
+# Provides:          doorController.py
 # Required-Start:    $remote_fs $syslog
 # Required-Stop:     $remote_fs $syslog
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: Start picamController daemon at boot time
+# Short-Description: Start doorController daemon at boot time
 # Description:       Enable service provided by daemon.
 ### END INIT INFO
 
 # Author: Tony Phillips
 
 DIR=/home/pi/piDoorCamera
-DAEMON=$DIR/picamController.py
-DAEMON_NAME=cameraController
+DAEMON=$DIR/doorController.py
+DAEMON_NAME=doorController
 
 DAEMON_USER=root
 

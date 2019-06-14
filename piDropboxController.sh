@@ -1,4 +1,4 @@
-#!/bin.sh
+#!/bin/bash
 ### BEGIN INIT INFO
 # Provides:          piDropboxController.py
 # Required-Start:    $remote_fs $syslog
@@ -8,6 +8,8 @@
 # Short-Description: Start piDropboxController daemon at boot time
 # Description:       Enable service provided by daemon.
 ### END INIT INFO
+
+# Author: Tony Phillips
 
 DIR=/home/pi/piDoorCamera
 DAEMON=$DIR/piDropboxController.py
